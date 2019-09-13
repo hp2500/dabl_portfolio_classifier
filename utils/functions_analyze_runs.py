@@ -7,7 +7,7 @@ import re
 
 
 # function that counts runs and flows per task
-def count_runs(task_id, evaluation_metric = 'area_under_roc_curve'):
+def count_runs(task_id, evaluation_metric = 'area_under_roc_curve', cutoff_date = '2100-01-01 00:00:00'):
     
     # get list of evaluations for each task
     evals = openml.evaluations.list_evaluations(function=evaluation_metric,
@@ -16,6 +16,9 @@ def count_runs(task_id, evaluation_metric = 'area_under_roc_curve'):
     
     # only take the ones that refer to sklearn runs
     evals_runs = evals[evals['flow_name'].str.contains('sklearn')]
+
+    # only take the runs that were published before cutoff date
+    evals_runs = evals_runs.loc[evals_runs.upload_time <  cutoff_date]
     
     # drop duplicate flows
     evals_flows = evals_runs.drop_duplicates(subset = ['flow_id'])
@@ -28,7 +31,8 @@ def count_runs(task_id, evaluation_metric = 'area_under_roc_curve'):
 def task_to_runs(task_id, 
                  evaluation_metric = 'area_under_roc_curve', 
                  cutoff_best = 5, 
-                 keep_duplicates = True):
+                 keep_duplicates = True,
+                 cutoff_date = '2100-01-01 00:00:00'):
 
     # get list of evaluations for each task
     evals = openml.evaluations.list_evaluations(function=evaluation_metric, 
@@ -37,6 +41,9 @@ def task_to_runs(task_id,
 
     # only take the ones that refer to sklearn runs
     evals = evals[evals['flow_name'].str.contains('sklearn')]
+
+    # only take the runs that were published before cutoff date
+    evals = evals.loc[evals.upload_time <  cutoff_date]
     
     # drop duplicate flows 
     if keep_duplicates == False:
@@ -124,7 +131,8 @@ def get_run_info_svc(run_id):
 def get_best_classifiers(tasks, 
                          evaluation_metric = 'area_under_roc_curve', 
                          cutoff_best = 5, 
-                         keep_duplicates = True):
+                         keep_duplicates = True,
+                         cutoff_date = '2100-01-01 00:00:00'):
    
     # create empty dict to populate with tasks
     dict_tasks = {}
@@ -139,7 +147,8 @@ def get_best_classifiers(tasks,
         best_runs = task_to_runs(task_id, 
                                  evaluation_metric= evaluation_metric,
                                  cutoff_best=cutoff_best,
-                                 keep_duplicates=keep_duplicates)
+                                 keep_duplicates=keep_duplicates,
+                                 cutoff_date = cutoff_date)
 
         # create empry dict to populate with clf
         dict_runs = {}
@@ -166,7 +175,7 @@ def get_best_classifiers(tasks,
         print()
         
         # count number of runs and flows for each task
-        nr_runs, nr_flows = count_runs(task_id)
+        nr_runs, nr_flows = count_runs(task_id, cutoff_date = cutoff_date)
         
         # add to dict of runs per task
         run_all_data = {'nr_runs': nr_runs,

@@ -4,6 +4,15 @@ import pandas as pd
 import json
 import re
 
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from datetime import datetime
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import make_scorer, roc_auc_score
+
 
 
 # function that counts runs and flows per task
@@ -214,5 +223,131 @@ def count_classifiers(tasks, keep_duplicates = True):
         
     # return dict
     return(all_runs)
+
+def svc_param_test(task_id, run_id, params):
+
+    # get task
+    i = task_id
+    task = openml.tasks.get_task(i)
+
+    # get dataset object 
+    data = openml.datasets.get_dataset(task.dataset_id)
+
+    # get relevant info from dataset object
+    X, y, categorical_indicator, attribute_names = data.get_data(dataset_format='array',
+                                                                target=data.default_target_attribute)
+
+    # mask with feature types
+    cat = categorical_indicator
+    num = [not k for k in categorical_indicator]
+
+    # create column transformers
+    numeric_transformer = make_pipeline(#SimpleImputer(strategy='median'), 
+                                        StandardScaler())
+
+    categorical_transformer = make_pipeline(#SimpleImputer(strategy='most_frequent'),
+                                            OneHotEncoder(handle_unknown='ignore'))
+
+    preprocessor = ColumnTransformer(
+    transformers=[
+    ('num', numeric_transformer, num),
+    ('cat', categorical_transformer, cat)])
+
+    k = run_id
+
+    print('Run', k, 'on task', i)
+    print(datetime.now())
+
+    try:
+
+        # define classifier
+        clf = SVC(**params)
+
+        # pick pipeline according to feature types
+        if not any(categorical_indicator):
+            pipe = make_pipeline(SimpleImputer(strategy='median'), StandardScaler(), clf)
+        elif all(categorical_indicator):
+            pipe = make_pipeline(SimpleImputer(strategy='most_frequent'), OneHotEncoder(handle_unknown='ignore'), clf)
+        else:
+            pipe = make_pipeline(SimpleImputer(strategy='most_frequent'), preprocessor, clf)
+
+        # run best model on the task
+        run = openml.runs.run_model_on_task(pipe, task, avoid_duplicate_runs=False)
+
+        # print feedbackack
+        print('Publish openml run...')
+
+        # push tag
+        #run.push_tag('best_models')
+
+        # publish the run 
+        run.publish()
+        # print feedback
+        print('View run online: https://www.openml.org/r/' + str(run.run_id))
+        print('Setup', openml.runs.get_run(run.run_id).setup_id)
+        print('Flow', openml.runs.get_run(run.run_id).flow_id)
+        print()
+
+    except Exception as e:
+        print(e)
+        
+    return run
+
+
+def svc_param_test_local(task_id, params, cv = 2):
+
+    # get task
+    i = task_id
+    task = openml.tasks.get_task(i)
+
+    # get dataset object 
+    data = openml.datasets.get_dataset(task.dataset_id)
+
+    # get relevant info from dataset object
+    X, y, categorical_indicator, attribute_names = data.get_data(dataset_format='array',
+                                                                target=data.default_target_attribute)
+
+    # mask with feature types
+    cat = categorical_indicator
+    num = [not k for k in categorical_indicator]
+
+    # create column transformers
+    numeric_transformer = make_pipeline(#SimpleImputer(strategy='median'), 
+                                        StandardScaler())
+
+    categorical_transformer = make_pipeline(#SimpleImputer(strategy='most_frequent'),
+                                            OneHotEncoder(handle_unknown='ignore'))
+
+    preprocessor = ColumnTransformer(
+    transformers=[
+    ('num', numeric_transformer, num),
+    ('cat', categorical_transformer, cat)])
+
+    try:
+
+        # define classifier
+        clf = SVC(**params)
+        scoring = make_scorer(roc_auc_score, needs_proba=True)
+
+        # pick pipeline according to feature types
+        if not any(categorical_indicator):
+            pipe = make_pipeline(SimpleImputer(strategy='median'), StandardScaler(), clf)
+        elif all(categorical_indicator):
+            pipe = make_pipeline(SimpleImputer(strategy='most_frequent'), OneHotEncoder(handle_unknown='ignore'), clf)
+        else:
+            pipe = make_pipeline(SimpleImputer(strategy='most_frequent'), preprocessor, clf)
+
+        run_cv = cross_val_score(pipe, X = X, y = y, scoring=scoring, cv = cv)
+
+        return run_cv
+
+    except Exception as e:
+        print(e)
+        
+    
+
+
+    
+
 
     

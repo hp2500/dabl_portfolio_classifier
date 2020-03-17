@@ -5,7 +5,7 @@ import pandas as pd
 
 
 # define function for submodular optimization
-def sub_opt(df, n):
+def sub_opt(df, n, criterion='mean'):
     
     # rank setups according to mean performace over tasks
     ranks = df.mean(axis = 1).rank(method = 'first', ascending = False)
@@ -31,8 +31,16 @@ def sub_opt(df, n):
         diff_pos = diff_pos.fillna(0)
         
         # get setup that maximizes aggregate performance 
-        # (largest average positive difference to ensemble performance)
-        next_rank = diff_pos.mean(axis = 1).rank(method = 'first', ascending = False)
+        
+        if criterion == 'mean':
+            # (largest average positive difference to ensemble performance)
+            next_rank = diff_pos.mean(axis = 1).rank(method = 'first', ascending = False)
+        elif criterion == 'max':
+            # (largest maximum positive difference to ensemble performance)
+            next_rank = diff_pos.max(axis = 1).rank(method = 'first', ascending = False)
+        elif criterion == 'median':
+            # (largest median positive difference to ensemble performance)
+            next_rank = diff_pos.median(axis = 1).rank(method = 'first', ascending = False)
         
         # append setup id to set of best setups
         best_set.append(next_rank[next_rank == 1].index[0])
@@ -41,7 +49,7 @@ def sub_opt(df, n):
 
 
 # computes performance improvement for each additional classifier
-def perf_imp(df):
+def perf_imp(df, df_raw, criterion='mean', verbose=False):
     
     # rank setups according to mean performace over tasks
     ranks = df.mean(axis = 1).rank(method = 'first', ascending = False)
@@ -55,12 +63,14 @@ def perf_imp(df):
     
         # get the best evals of any classifier in set for each task
         best_evals = df.loc[best_set].max()
+        best_evals_perf = df_raw.loc[best_set].max()
+
             
         if best_evals.mean() == 1:
-            performance.append(best_evals.mean())
+            performance.append(best_evals_perf.mean())
             break
             
-        performance.append(best_evals.mean())
+        performance.append(best_evals_perf.mean())
         
         # differences between best set evals and other evals
         diff = df - best_evals.values
@@ -70,18 +80,25 @@ def perf_imp(df):
         
         # replaces nas by zero so that means will be based on the same denominator
         diff_pos = diff_pos.fillna(0)
-        
-        # get setup that maximizes aggregate performance 
-        # (largest average positive difference to ensemble performance)
-        next_rank = diff_pos.mean(axis = 1).rank(method = 'first', ascending = False)
+
+        if criterion == 'mean':
+            # (largest average positive difference to ensemble performance)
+            next_rank = diff_pos.mean(axis = 1).rank(method = 'first', ascending = False)
+        elif criterion == 'max':
+            # (largest maximum positive difference to ensemble performance)
+            next_rank = diff_pos.max(axis = 1).rank(method = 'first', ascending = False)
+        elif criterion == 'median': 
+            # (largest median positive difference to ensemble performance)
+            next_rank = diff_pos.median(axis = 1).rank(method = 'first', ascending = False)
         
         # append setup id to set of best setups
         best_set.append(next_rank[next_rank == 1].index[0])
                 
-        setup = openml.setups.get_setup(next_rank[next_rank == 1].index[0])
-        flow = openml.flows.get_flow(setup.flow_id)
-        last_step = flow.components[json.loads(flow.parameters['steps'])[-1]['value']['step_name']]
-        print(last_step.name)
+        if verbose == True:
+            setup = openml.setups.get_setup(next_rank[next_rank == 1].index[0])
+            flow = openml.flows.get_flow(setup.flow_id)
+            last_step = flow.components[json.loads(flow.parameters['steps'])[-1]['value']['step_name']]
+            print(last_step.name)
     
     return(best_set, performance)
 

@@ -131,7 +131,35 @@ def get_run_info_svc(run_id):
     params['gamma'] = eval(params['gamma'].replace('"',''))
     params['kernel'] = params['kernel'].replace('"','')
     params['max_iter'] = eval(params['max_iter'].replace('"',''))
-    params['random_state'] = 1    
+    params['random_state'] = 1
+    params['probability'] = True
+    return params
+
+# function to get model params
+def get_run_info_svc_str(run_id):
+    
+    run = openml.runs.get_run(run_id)
+    flow = openml.flows.get_flow(run.flow_id)
+
+    if "estimator" in flow.parameters:
+        flow = openml.flows.get_flow(flow.components['estimator'].flow_id)
+        
+    last_step = flow.components[json.loads(flow.parameters['steps'])[-1]['value']['step_name']]
+    setup = openml.setups.get_setup(run.setup_id)
+    last_step_parameters = [v for v in setup.parameters.values() if v.flow_id == last_step.flow_id]
+    params = {p.parameter_name: p.value for p in last_step_parameters}
+    
+    param_keys = ('C', 'coef0', 'degree', 'gamma', 'kernel', 'max_iter')
+    params = dict((k, params[k]) for k in param_keys)
+        
+    params['C'] = params['C'].replace('"','')
+    params['coef0'] = params['coef0'].replace('"','')
+    params['degree'] = params['degree'].replace('"','')
+    params['gamma'] = params['gamma'].replace('"','')
+    params['kernel'] = params['kernel'].replace('"','')
+    params['max_iter'] = params['max_iter'].replace('"','')
+    params['random_state'] = 1
+    params['probability'] = True
     return params
 
 

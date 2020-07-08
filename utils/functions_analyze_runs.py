@@ -135,6 +135,81 @@ def get_run_info_svc(run_id):
     params['probability'] = True
     return params
 
+
+# function to get model params
+def get_run_info_rf(run_id):
+    
+    run = openml.runs.get_run(run_id)
+    flow = openml.flows.get_flow(run.flow_id)
+
+    if "estimator" in flow.parameters:
+        flow = openml.flows.get_flow(flow.components['estimator'].flow_id)
+        
+    last_step = flow.components[json.loads(flow.parameters['steps'])[-1]['value']['step_name']]
+    setup = openml.setups.get_setup(run.setup_id)
+    last_step_parameters = [v for v in setup.parameters.values() if v.flow_id == last_step.flow_id]
+    params = {p.parameter_name: p.value for p in last_step_parameters}
+    
+    param_keys = ('n_estimators', 'criterion', 'max_depth', 'min_samples_split', 
+                  'min_samples_leaf', 'min_weight_fraction_leaf', 'max_features',
+                  'max_leaf_nodes', 'min_impurity_split',
+                  'bootstrap', 'oob_score', 'n_jobs', 'random_state', 'class_weight')
+    
+    # couldnt use min_impurity_decrease, ccp_alpha, max_samples, ccp_alpha
+    # all of the following could be done in a loop... implement when I have time
+    
+    params = dict((k, params[k]) for k in param_keys)
+        
+    params['n_estimators'] = eval(params['n_estimators'].replace('"',''))
+    params['criterion'] = params['criterion'].replace('"','')   
+    try:
+        params['max_depth'] = eval(params['max_depth'].replace('"',''))
+    except: 
+        params['max_depth'] = None
+    params['min_samples_split'] = eval(params['min_samples_split'].replace('"',''))
+    params['min_samples_leaf'] = eval(params['min_samples_leaf'].replace('"',''))
+    params['min_weight_fraction_leaf'] = eval(params['min_weight_fraction_leaf'].replace('"',''))
+    
+    if params['max_features'].replace('"','') == 'auto':
+       params['max_features'] = params['max_features'].replace('"','')
+    else:
+        params['max_features'] = eval(params['max_features'].replace('"',''))
+    try:
+        params['max_leaf_nodes'] = eval(params['max_leaf_nodes'].replace('"',''))
+    except:
+        params['max_leaf_nodes'] = None
+    try:
+        params['min_impurity_decrease'] = eval(params['min_impurity_decrease'].replace('"',''))
+    except:
+        params['min_impurity_decrease'] = 0
+    try:
+        params['min_impurity_split'] = eval(params['min_impurity_split'].replace('"',''))
+    except:
+        params['min_impurity_split'] = 0
+        
+    params['min_impurity_decrease'] = params.pop('min_impurity_split')
+
+    
+    params['bootstrap'] = eval(params['bootstrap'].replace('"','').capitalize())
+    params['oob_score'] = eval(params['oob_score'].replace('"','').capitalize())
+    try:
+        params['n_jobs'] = eval(params['n_jobs'].replace('"',''))
+    except:
+        params['n_jobs'] = None
+        
+    params['random_state'] = 1
+
+    try:
+        if params['class_weight'].replace('"','') == 'None' or params['class_weight'].replace('"','') == "null":
+            params['class_weight'] = None
+        else:
+            params['class_weight'] = params['class_weight'].replace('"','')
+    except:
+        print('No class_weight specified, choose default.')
+
+    return params
+
+
 # function to get model params
 def get_run_info_svc_str(run_id):
     

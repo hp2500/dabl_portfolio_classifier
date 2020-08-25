@@ -137,6 +137,44 @@ def get_run_info_svc(run_id):
 
 
 # function to get model params
+def get_run_info_lr(run_id):
+    
+    run = openml.runs.get_run(run_id)
+    flow = openml.flows.get_flow(run.flow_id)
+
+    if "estimator" in flow.parameters:
+        flow = openml.flows.get_flow(flow.components['estimator'].flow_id)
+        
+    last_step = flow.components[json.loads(flow.parameters['steps'])[-1]['value']['step_name']]
+    setup = openml.setups.get_setup(run.setup_id)
+    last_step_parameters = [v for v in setup.parameters.values() if v.flow_id == last_step.flow_id]
+    params = {p.parameter_name: p.value for p in last_step_parameters}
+    
+    param_keys = ('C', 'dual', 'fit_intercept', 'intercept_scaling', 'max_iter', 'solver', 
+                  'penalty', 'multi_class', 'l1_ratio')
+    params = dict((k, params[k]) for k in param_keys)
+    
+    params['C'] = eval(params['C'].replace('"',''))
+    params['dual'] = eval(params['dual'].replace('"','').capitalize())
+    params['fit_intercept'] = eval(params['fit_intercept'].replace('"','').capitalize())
+    params['intercept_scaling'] = eval(params['intercept_scaling'].replace('"',''))
+    params['max_iter'] = eval(params['max_iter'].replace('"',''))
+    params['solver'] = params['solver'].replace('"','')
+    
+    params['penalty'] = params['penalty'].replace('"','')
+    params['multi_class'] = params['multi_class'].replace('"','')
+    
+    if params['l1_ratio'].replace('"','') != 'null':
+        params['l1_ratio'] = eval(params['l1_ratio'].replace('"',''))
+    else: 
+        params['l1_ratio'] = None
+
+    params['random_state'] = 1
+    return params
+
+
+
+# function to get model params
 def get_run_info_rf(run_id):
     
     run = openml.runs.get_run(run_id)

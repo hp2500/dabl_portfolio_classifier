@@ -1,0 +1,4 @@
+HistGradientBoostingClassifier(l2_regularization=1e-06, max_bins=256, max_iter=200, max_leaf_nodes=128, min_samples_leaf=50)
+RandomForestClassifier(criterion='entropy', max_features=0.32778941525789984, min_samples_split=5, n_estimators=300)
+SVC(C=52.368035023140784, gamma=0.008051730038808798, kernel='rbf')
+RandomForestClassifier(criterion='entropy', max_features=0.07198156955074353, min_samples_split=6, n_estimators=500)
